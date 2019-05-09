@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Richard's Revenge: Return to CSCI335</title>
+    <title>Marmorstein's Revenge: The Age of ChemTutor</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <style type="text/css">
       @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
@@ -13,17 +13,28 @@
         font-family: 'Yanone Kaffeesatz';
         font-weight: normal;
       }
+      .remark-slide-content {
+          background: black;
+          color: white;
+      }
       .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
     </style>
   </head>
   <body>
     <textarea id="source">
-class: center, middle
-# Richard's Revenge: The Return to CSCI335
+class: center, middle, titlepage
+# Marmorstein's <span style="color:red">Revenge</span>
+## The Age of ChemTutor
+
+<marquee>Adventure awaits</marquee>
+<p>Slides: https://twitchard.github.io/csci335</p>
+<p>Code: https://github.com/twitchard/csci335</p>
 ---
 class: center, middle
 # Anatomy of Large Web Applications
 
+<p>Slides: https://twitchard.github.io/csci335</p>
+<p>Code: https://github.com/twitchard/csci335</p>
 ---
 ## Who am I?
 
@@ -32,16 +43,17 @@ class: center, middle
 - Feb 2015 - API Team @ Livestream
 - Oct 2017 - Vimeo Live @ Vimeo
 - Sep 2018 - Developer Experience @ Vimeo
+- Lead Engineer / Hiring Manager
 
 ---
 
 class: center, middle
-## What will I be talking about?
+# What will I be talking about?
 
 ---
 
 class: center, middle
-# The Unthinkable
+<h1 style="color:red">The Unthinkable</span>
 
 ---
 
@@ -51,19 +63,19 @@ class: center, middle
 ---
 class: middle
 ## Handling lots of traffic?
-  1. Cache things!
+  1. Use caches!
   2. More servers!
 
 ---
 class: middle
 ## Handling lots of developers?
   - APIs
-  - Event Busses
+  - Message Busses / Event
   - "Microservices"
 
 ---
 class: middle
-## Handling the haters who want to bring you down
+## Handling the <span style="color:red">haters</span> who want to bring you down?
   - XSS attacks
   - CSRF attacks (and CORS)
   - Web authentication
@@ -176,7 +188,6 @@ If you visited the Wikipedia landing page, and then somebody made an edit, you w
 Unless you cleared your cache, or opened an incognito window.
 
 ---
-```
 ## More cache-control examples
 
 **The article about caching is not cached at all (by browsers)**
@@ -190,6 +201,15 @@ cache-control: private, s-maxage=0, max-age=0, must-revalidate
 curl 'https://en.wikipedia.org/static/images/wikimedia-button-2x.png' -s -I | grep cache-control
 cache-control: max-age=31536000
 ```
+
+???
+
+Does everybody know what HTTP headers are?
+Does everybody know about curl?
+---
+
+## I built <a href="cacheme.js">my own example</a>
+
 ---
 ## ETags
 
@@ -207,7 +227,29 @@ Etags are a way for the server to avoid retransmitting large responses. An etag 
 - This is important for images and other media.
 - Etags are usually a hash/checksum of the file contents.
 
+## ETag Example
+
+```javascript
+const server = require('http').createServer((req,res) => {
+    if (req.headers['if-none-match'] === 'abc') {
+        res.writeHead(304, {
+            etag: 'abc'
+        })
+        res.end()
+        return
+    }
+    res.writeHead(200, {
+        etag: 'abc'
+    })
+    res.write('richard was here')
+    res.end() 
+})
+server.listen(3000)
+```
 ???
+node etags.js
+
+curl localhost:3000 -H "if-none-match:abc"
 Ok, so browser caches only help reduce duplicate traffic from each client. But if I have a million different Taylor Swift fans, how do I handle that?
 ---
 
@@ -229,10 +271,9 @@ class
 
 - It is very very very fast at sending and receiving HTTP requests. 20,000+ requests per second, possibly.
 - Goes "in front" of your application server.
-- Stores responses 
-- Can protect the application server from returning any response more than once.
+- The application server only has to generate the response once -- for *any* client. Varnish will take care of all repeat requests. (Until it expires) 
 
-***
+???
 sudo varnishd -b localhost:3000 -F
 curl localhost:80
 
@@ -243,12 +284,104 @@ $ httperf --server localhost --port 3000 --num-calls 10 --num-conns 5 --uri /che
 $ httperf --server localhost --port 80 --num-calls 100000 --num-conns 5 --uri /chemistry/:organic --rate 10
 ---
 
-
 ## Cache terminology
-* **Cache hit** the requested object was in the cache
-* **Cache miss** the requested object was not in the cache
-* **Cache bust** to remove an object from the cache (before it expires)
-* **Warm the cache** to put an object in the cache, so it can be ready before a real client requests it
+* **Cache hit** - the requested object was in the cache
+* **Cache miss** - the requested object was not in the cache
+* **Cache bust** - to remove an object from the cache (before it expires)
+* **Warm the cache** - to put an object in the cache, so it can be ready before a real client requests it
+
+---
+
+## Cache busting
+
+- **Advantage:** You can eliminate stale data but still get to use your cache.
+- **Disadvantage:** Complexity. "Two hard problems in computer science"
+
+---
+
+## CDNs
+
+- "Content Delivery Network"
+- You pay them, and they will put public caches on their servers all around the world.
+- Your servers are the "origin". Their servers are the "edges".
+- Less control than running your own caches.
+- Examples: Cloudflare, Akamai, Fastly
+- Cloud providers: "Amazon Cloudfront", "Google Cloud CDN", "Azure CDN"
+
+---
+# Limitations
+
+- Private data! Can't put data for logged in users in a public cache.
+- Can only cache reads. Won't help you with writes.
+
+---
+class: center, middle
+# Key-Value Caches
+- Behind your servers
+- Can protect the database
+- Can store the results of computationally intensive queries
+
+- Very very fast at storing and retrieving data
+- Typically store in memory
+- No indices.
+- Examples: Redis, Memcached
+???
+Not the same as read replicas. Read replicas copy ALL data, not just the results of queries.
+---
+
+## "Eviction Strategies"
+
+When you run out of memory, you make room for new entries via "eviction"
+- LRU (least-recently used)
+- LFU (least-frequently used)
+- Random
+- Custom
+
+---
+class: center, middle
+## Example?
+???
+redis-server
+vim fibbonacci.js
+time curl localhost:3000/fib/42
+time curl localhost:3000/cached_fib/42
+time curl localhost:3000/cached_fib/42
+
+---
+
+## Query Caches
+
+Your database server itself has various caches inside.
+
+- MySQL used to have something called the "query cache" but this was removed in the latest version.
+- PostgreSQL has various caching mechanisms that you can tune.
+
+---
+class: center, middle
+# But what about writes????
+
+???
+So there are two types of requests -- reads, and writes.
+
+To show somebody a webpage, that's mostly only reads.
+
+But if people are submitting data to you, editing their profile, changing their settings -- that's writes. Caches can't help you at all there.
+
+There's nothing to do but spin up more servers.
+
+---
+
+## Load Balancers
+
+
+
+Things used to be, you have a datacenter, somebody physically buys a computer, mounts it on a rack, plugs it in to a router...
+
+Then along came hardware virtualization
+
+"Pets Vs. Cattle"
+That's how it was
+
 
     </textarea>
     <script src="remark.js" type="text/javascript">
