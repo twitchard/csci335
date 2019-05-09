@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Richard's Revenge: Return to CSCI335</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle
+# Richard's Revenge: The Return to CSCI335
+---
+class: center, middle
+# Anatomy of Large Web Applications
+
+---
+## Who am I?
+
+- Graduated in 2014.
+- Dropped out of Economics PhD
+- Feb 2015 - API Team @ Livestream
+- Oct 2017 - Vimeo Live @ Vimeo
+- Sep 2018 - Developer Experience @ Vimeo
+
+---
+
+class: center, middle
+## What will I be talking about?
+
+---
+
+class: center, middle
+# The Unthinkable
+
+---
+
+class: center, middle
+![](taytay.png)
+
+---
+class: middle
+## Handling lots of traffic?
+  1. Cache things!
+  2. More servers!
+
+---
+class: middle
+## Handling lots of developers?
+  - APIs
+  - Event Busses
+  - "Microservices"
+
+---
+class: middle
+## Handling the haters who want to bring you down
+  - XSS attacks
+  - CSRF attacks (and CORS)
+  - Web authentication
+
+---
+class: center, middle
+# Hiring / Interviewing
+---
+
+class: center, middle
+# How do you handle a lot of traffic?
+## PART 1 - Caches
+---
+
+class: center, middle
+## What is a cache?
+
+???
+
+What does a cache give you, and what do you pay for it?
+
+---
+
+class: center, middle
+## What types of caches are there?
+
+AKA: Where can caches live?
+
+---
+
+## Where can caches live
+
+* inside the client application
+* inside the browser (etags, cache-control header)
+* in front of the application (CDN, HTTP reverse proxy)
+* inside of the server application process (please don't do this)
+* in a key-value store "in front of" the SQL database (redis, memcached)
+* inside the SQL database (query cache)
+
+---
+## Cache inside the client application
+---
+
+## Cache inside the client application
+
+```html
+<button onClick="updateData()">get the latest chemistries</button>
+<div id="dataGoesHere"></div>
+```
+
+### Doesn't use a cache
+```javascript
+async function updateData () {
+    const ids = await getIdsOfLatestChemistriesFromServer()
+    const data = []
+    for (id of ids) {
+        data.push(
+            // This calls getChemistryFromServer even if we've
+            // already fetched the chemistry the previous time the
+            // user clicked
+            await getChemistryFromServer(id)
+        )
+    }
+    document.getElementById('dataGoesHere').innerHTML = renderChemistries(data)
+}
+```
+
+---
+
+### Makes a request only once every 2 minutes
+```javascript
+let cache = {}
+async function getChemistryFromCachedServer (id) {
+    if (cache[id] &&
+        cache[id].time > Date.now() - TWO_MINUTES
+    ) {
+        return cache[id].value
+    } 
+    const value = await getChemistryFromServer(id)
+    cache[id] = {value, time: Date.now()}
+}
+```
+---
+## Some Javascript front-end frameworks do this by default
+
+"Ember.js" (not that popular, but influential)
+
+---
+
+class: center, middle
+## The Browser Cache
+
+---
+
+
+    </textarea>
+    <script src="remark.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
