@@ -4,8 +4,15 @@ app.listen(3000, err => {
     if (err) throw err
     console.log('Listening on port 3000')
 })
-
 let n = 0
+app.use((req, res, next) => {
+    n++
+    console.log(`Received request ${n}: ${req.path}`)
+    res.on('finish', () => {
+        console.log(`finished request ${n}`)
+    })
+    return next()
+})
 
 const chemistryTypes = {
     bio: "Biochemistry",
@@ -26,11 +33,11 @@ app.get('/', (req, res, next) => {
 })
 
 app.get('/chemistry/:chem', (req, res, next) => {
-    console.log(req.params)
+    res.setHeader('cache-control', 'public, s-maxage=2')
     setTimeout(()=> res.send(
     `Enjoy your ${chemistryTypes[req.params.chem]}!!</br><a href="../">back</a>`
-    ), 7000)
+    ), 5000 * Math.random())
     const start = Date.now()
-    // Block for 2 seconds
-    while (Date.now() < start + 2000) {}
+    // Block for 1 seconds
+    while (Date.now() < start + 1000 * Math.random()) {}
 })

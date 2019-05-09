@@ -232,6 +232,15 @@ class
 - Stores responses 
 - Can protect the application server from returning any response more than once.
 
+***
+sudo varnishd -b localhost:3000 -F
+curl localhost:80
+
+Make sure to clear cookies
+
+$ httperf --server localhost --port 3000 --num-calls 10 --num-conns 5 --uri /chemistry/:organic --rate 10
+
+$ httperf --server localhost --port 80 --num-calls 100000 --num-conns 5 --uri /chemistry/:organic --rate 10
 ---
 
 
