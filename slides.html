@@ -156,8 +156,90 @@ async function getChemistryFromCachedServer (id) {
 class: center, middle
 ## The Browser Cache
 
+* The server can ask the browser to cache a response by providing a "cache-control header".
+
+* Skim (but probably don't read) [the RFC about caching.](https://tools.ietf.org/html/rfc7234)
+
+## Cache-control examples:
+* Example:
+
+```sh
+$ curl wikipedia.org -I -L -s | grep cache-control
+cache-control: s-maxage=86400, must-revalidate, max-age=3600
+```
+
+`max-age=3600` means that browsers can cache the page for an hour.
+
+???
+If you visited the Wikipedia landing page, and then somebody made an edit, you would not see it until an hour later.
+
+Unless you cleared your cache, or opened an incognito window.
+
+---
+```
+## More cache-control examples
+
+**The article about caching is not cached at all (by browsers)**
+```
+$ curl 'https://en.wikipedia.org/wiki/Cache_(computing)' -I -s | grep cache-control
+cache-control: private, s-maxage=0, max-age=0, must-revalidate
+```
+
+**But the "Wikimedia Foundation" image that is on every wikipedia article is cached for AGES.**
+```
+curl 'https://en.wikipedia.org/static/images/wikimedia-button-2x.png' -s -I | grep cache-control
+cache-control: max-age=31536000
+```
+---
+## ETags
+
+Etags are a way for the server to avoid retransmitting large responses. An etag is like a "version number" for the response.
+
+1. The server provides an etag header.
+
+2. The client remembers the response and the etag.
+
+3. When the client asks again, they specify the etag in the "If-None-Match" header.
+
+4. If the old response is up-to-date, the server can check that the etag is current, and then say
+"304 not modified", instead of retransmitting a big file.
+
+- This is important for images and other media.
+- Etags are usually a hash/checksum of the file contents.
+
+???
+Ok, so browser caches only help reduce duplicate traffic from each client. But if I have a million different Taylor Swift fans, how do I handle that?
 ---
 
+## Public caches
+
+- Browser caches are 'private' caches.
+- Reduce duplicate traffic from a single client.
+- But Taylor Swift's 83 million followers aren't all using a single browser.
+
+---
+
+## Public caches
+
+Public caches are shared across many users. One example: Varnish.
+
+---
+class
+## What does Varnish do
+
+- It is very very very fast at sending and receiving HTTP requests. 20,000+ requests per second, possibly.
+- Goes "in front" of your application server.
+- Stores responses 
+- Can protect the application server from returning any response more than once.
+
+---
+
+
+## Cache terminology
+* **Cache hit** the requested object was in the cache
+* **Cache miss** the requested object was not in the cache
+* **Cache bust** to remove an object from the cache (before it expires)
+* **Warm the cache** to put an object in the cache, so it can be ready before a real client requests it
 
     </textarea>
     <script src="remark.js" type="text/javascript">
