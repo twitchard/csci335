@@ -289,6 +289,8 @@ $ httperf --server localhost --port 80 --num-calls 100000 --num-conns 5 --uri /c
 * **Cache miss** - the requested object was not in the cache
 * **Cache bust** - to remove an object from the cache (before it expires)
 * **Warm the cache** - to put an object in the cache, so it can be ready before a real client requests it
+* **TTL** - "time to live" -- how long should the cache serve the data before invalidating it?
+* **Expiry** - Expiration, a particular time the cache should forget about the data
 
 ---
 
@@ -359,6 +361,7 @@ Your database server itself has various caches inside.
 ---
 class: center, middle
 # But what about writes????
+## (Part 1b -- More Servers)
 
 ???
 So there are two types of requests -- reads, and writes.
@@ -369,19 +372,225 @@ But if people are submitting data to you, editing their profile, changing their 
 
 There's nothing to do but spin up more servers.
 
+There are other good reasons to have multiple servers too -- reliability
+
+---
+class: center, middle
+# Statelessness
+???
+
+Can anybody describe what statelessness is?
+
+Statelessness means that your application doesn't have any "memory" of previous events.
+Basically, if I make the same request to your server twice, it should do the same thing the second time as it does the first time.
+
+For example, a stateless application can't keep track of the count of requests its received.
+
+Although, they could record each request in a database. Databases are allowed to be stateful.
+
+Then, if I had 100 different servers, they would each have a different count!
+
+Statelessness is important because all your application servers need to be treated identically by the system.
+
+Basically state is evil. Generally, you want to keep state concentrated in as few parts of your code as possible.
+
+Do you guys know what immutability is, and pure functions?
 ---
 
-## Load Balancers
+# Pets vs. Cattle
 
+???
+Things used to be, you have a datacenter, somebody physically buys a computer, mounts it on a rack, plugs it in to a router.
+Then it comes online, they SSH into it, and manually install all the software it needs, and put the configuration on it that it needs.
 
+So in this type of situation you really have kind of have an individual
+relationship with your servers. You know what they look like, physically.  You
+might even give them a anthropomorphic name like 'Bob, The Mail Server'. You
+know where they sit on the rack, you know which router they're connected to.
+They mean something to you. You'll probably feel sad when they're
+decommissioned. They're kind of like a pet. 
 
-Things used to be, you have a datacenter, somebody physically buys a computer, mounts it on a rack, plugs it in to a router...
+But pets don't scale. If you're serious about serving all of Taylor Swift's
+fans, you want your servers to be like Cattle, not pets.  You want to spin up
+new servers whenever they're needed. When they're no longer needed, you want to
+shut them down. There should be too many of them to have names, other than
+Mailserver0251.
 
-Then along came hardware virtualization
+---
+class: center, middle
+# The Cloud
 
-"Pets Vs. Cattle"
-That's how it was
+???
+Who can tell me what the cloud is?
 
+What are the three big clouds?
+
+Does anybody know what AWS is?
+---
+class: center, middle
+# Hardware virtualization: <span style="color: red"/>The Deception</span>
+
+- Problem: 64 Linux kernels running on 64 machines each with their own processor, RAM, disk, network interface -- hard to maintain.
+- A "hypervisor" deceives Linux into thinking it is running on its own isolated hardware -- but really it's running on shared hardware.
+- So you can load a single machine with a gabillion processors, etc. and run a hypervisor on it, and create new Linux servers with a wave of your hand.
+- Amazon, Google, Microsoft, Oracle, etc. have huge datacenters and sell you the ability to spin up and down virtual machines with the click of a button.
+
+???
+So in the old days, you would have 64 operating systems, running on 64 separate machines, each machine with its own processor, its own ram, its own disk, its own network interface.
+
+Hardware virtualization makes it so you have 1 operating system with all the ram, all the disk, all the processors. Then that operating system runs 64 "virtual" instances of Linux, and is able to allocate the ram, disk, cpu cores, etc. between them. All this time, Linux *thinks* it has it's own disk, its own CPU, etc. -- but it's all a lie. It's really talking to *virtual* hardware.
+
+The advantage of this is that you can create a new server just with code. You don't have to have somebody physically plug in a new computer into the rack and plug in network cables. You can just ask the hypervisor "hello sir, one new server please" and in a matter of seconds, you can SSH in!
+
+So you can use this "hypervisor" to run your own datacenter. But first Amazon, then later Google and Microsoft realized that you can make a lot of money if you build way more datacenters than you need, and then sell these virtual machines to other people.
+
+This is an oversimplification of history, "Web hosts" and private servers existed before AWS, but hardware virtualization is the innovation that really made "the cloud" take off.
+
+So, long story short, if Taylor Swift tweets about Chemtutor -- the first thing you should do is buy a bunch of virtual machines from Amazon or Microsoft.
+---
+
+# Load Balancing
+
+## You've got 100 servers. Now what?
+
+???
+
+Well, for starters you need to point chemtutor.wlu.edu at something. But what?
+
+Can you point it at all the servers? Yes, you actually can, but that's generally not advised.
+  - DNS is a whole huge bunch of caches. Those caches have TTL. So if you ever needed to take down a server, or add new ones, you would have to wait for the expiration. Traffic might hit the bad server in the meantime, and those unlucky Taylor Swift fans will think your website is down.
+  - Usually you point it at a single load balancer. A load balancer can be hardware-based (you can buy a load balancer from the cloud) -- or it can be an application you run on server.
+  - Varnish can work as a load balancer.
+  - Nginx and HAProxy are other http servers also frequently used as load balancers.
+
+Concepts:
+  - Health Checks
+
+---
+
+# Configuration Management
+
+How do I configure 100 servers?
+
+- What if I want to add somebody's ssh public key to all of them?
+- What if I want to upgrade the version of openSSL?
+
+* Declarative vs Imperative approaches
+* Building VM images (packer?) and scaling them out
+  - But not all servers can truly be cattle
+* Configuration Management Tool (Chef, Puppet, Ansible)
+* If you're a cool hipster like me -- Nix
+* Sorry, no examples.
+
+---
+
+# Cloud Provisioning
+
+- How do I make new servers or delete servers? Or new load balancers? Or change network firewall rules?
+
+* Again, declarative vs imperative
+* Click buttons on the AWS (etc.) website
+* Use the AWS cli (or write scripts that do)
+* OR -- declarative, use a tool like Terraform.
+
+---
+
+# Deployments
+
+- I made a change to my code. How do I get it on 100 different servers?
+
+- 1 solution -- zip up the code, send it to all the VMs, unzip it, start the new processes, stop the old ones.
+- There are tools to make this "easy"
+  - Capistrano (Ruby)
+  - Fabric (Python)
+- Another solution, spin up 100 new servers with the new code running. Then, update the load balancer to point to the new servers.
+- You can do "canary deployments" this way. Roll out a change to n% of users to "test the waters" and see if any exceptions happen.
+
+---
+
+# Containers: <span style="color:red">The Even More Devious Deception</span>
+
+- What is a container? Containers are OS-level virtualization, rather than hardware.
+- Basically, a hypervisor tricks the operating system into thinking that it's running on its own dedicated hardware, when it's really running on shared hardware.
+- A <em>container</em> is tricking the application into thinking that it's running on its own dedicated operating system, when really it's running on a shared one.
+
+---
+
+# Containers: Why?
+
+- Dependency management becomes easier.
+  - Suppose you have some code on Java 8, and some code on Java 9.
+  - Without containers you'll need two types of servers -- Java 8 servers and Java 9 servers.
+  - With containers, you can put Java 8 in the container with the Java 8 application, and Java 9 in the container with the Java 9 application.
+  - You don't need ANY Java on any of the servers. The servers can all be the same, they just need Docker. Docker can run any container you ship to it.
+  - Also, you can run it on your own laptop without installing Java 8 or Java 9 or having to switch between them. All you need is Docker
+
+- More efficient use of resources.
+
+- Let me demonstrate Docker
+
+---
+
+# What is Kubernetes?
+
+- Container orchestrator.
+- It lets you
+  - autoscale your containers based on traffic
+  - declaratively define what versions of containers are deployed
+  - manage configuration for your containers
+  - schedule repeating jobs
+
+Basically, Kubernetes is intended to let you forget about virtual machines, and think entirely in terms of containers.
+
+- Competes with "Mesos"
+
+---
+
+# What is "Serverless"
+
+- Also called FaaS "functions as a service".
+- You write the application, and then your cloud provider runs it on a default server in response to requests, and takes care of things like autoscaling.
+- Don't ask me more.
+
+---
+
+class: center, middle
+# Part 2 - Scaling Teams:
+## How do you handle a 100+ developer group project?
+
+---
+
+# Part 2 - Scaling Teams:
+## How do you handle a 100+ developer group project?
+
+- Break it down into independent, decoupled components
+- Components should need to communicate with each other as little as possible
+- And when they do, it should be through clearly defined interfaces
+
+- ^ everybody basically agrees with this
+---
+
+# "Microservices" vs "Monoliths": <span style="color:red">The Controversy</span>
+
+---
+
+## Microservices
+One view:
+- each independent, decoupled components should be its own application.
+- applications should communicate with each other by making network requests
+- network requests are inconvenient, so this will ensure decoupling
+- since each component is small, build times are slow
+- you can also write different components in different programming languages, which might be more suited to the task
+
+## Monoliths
+Another view:
+  - It's possible to build indepedent, decoupled components inside a single app.
+  - Network requests introduce more failure modes and more complexity.
+  - It is much harder to write tests across different components if they are in different applications.
+  - You also can't type check across different components.
+
+---
+## APIs
 
     </textarea>
     <script src="remark.js" type="text/javascript">
